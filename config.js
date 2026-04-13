@@ -1,0 +1,12 @@
+const path = require('path');
+const fs = require('fs');
+const OWNER_NUMBER = '254704955033';
+const BOT_NAME = 'Zero Trace Bot';
+const PREFIX = '💧';
+const SESSION_DIR = path.join(__dirname, 'session');
+const MENU_FILE = path.join(__dirname, 'menu.txt');
+const STARTUP_IMAGE = path.join(__dirname, 'bot.jpg');
+const TG_TOKEN = process.env.TG_TOKEN;
+const TG_ADMIN_ID = process.env.TG_ADMIN_ID;
+if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true });
+module.exports = { OWNER_NUMBER, BOT_NAME, PREFIX, SESSION_DIR, MENU_FILE, STARTUP_IMAGE, TG_TOKEN, TG_ADMIN_ID };

@@ -1,0 +1,12 @@
+╔══════════════════════════════╗
+║    🔥 ZERO TRACE BOT 🔥      ║
+╚══════════════════════════════╝
+💧menu - Show menu
+💧ping - Latency check
+💧info - Bot info
+💧owner - Owner number
+💧uptime - Uptime
+💧tagall - Mention all
+💧admins - List admins
+💧ytmp3 <song> - YouTube audio
+💧joke - Random joke

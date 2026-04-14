@@ -14,7 +14,7 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
-            browser: ['ZeroTraceBot', 'Safari', '15.0'],  // Known working browser
+            browser: ['Zero Trace Bot', 'Chrome', '120.0.0.0'], // Known working
             syncFullHistory: false,
             markOnlineOnConnect: true,
             patchMessageBeforeSending: (msg) => {
@@ -32,22 +32,18 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
         connectionStartTime = Date.now();
         sock.ev.on('creds.update', saveCreds);
 
-        // Handle pairing code
+        // Handle pairing code only after connection is open
         if (pairingNumber && typeof pairingNumber === 'string') {
-            // Wait for socket to be fully ready (connection open event)
-            const waitForOpen = () => {
-                return new Promise((resolve) => {
-                    const checkOpen = (update) => {
-                        if (update.connection === 'open') {
-                            sock.ev.off('connection.update', checkOpen);
-                            resolve();
-                        }
-                    };
-                    sock.ev.on('connection.update', checkOpen);
-                    // Also resolve after 10 seconds max to avoid hanging
-                    setTimeout(resolve, 10000);
-                });
-            };
+            const waitForOpen = () => new Promise((resolve) => {
+                const onUpdate = (update) => {
+                    if (update.connection === 'open') {
+                        sock.ev.off('connection.update', onUpdate);
+                        resolve();
+                    }
+                };
+                sock.ev.on('connection.update', onUpdate);
+                setTimeout(resolve, 15000); // fallback after 15s
+            });
             
             await waitForOpen();
             
@@ -65,20 +61,21 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
-            console.log(`[WA] Connection update: ${connection || 'unknown'}`);
+            console.log(`[WA] Connection update: ${connection || 'connecting'}`);
             
             if (connection === 'close') {
                 const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-                console.log(`[WA] Connection closed, reconnecting: ${shouldReconnect}`);
                 isConnected = false;
-                if (shouldReconnect) setTimeout(() => connectWA(), 5000);
+                if (shouldReconnect) {
+                    console.log('[WA] Reconnecting in 5s...');
+                    setTimeout(() => connectWA(), 5000);
+                }
             } else if (connection === 'open') {
                 isConnected = true;
                 console.log('[WA] Connected successfully!');
-                
                 const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
                 if (fs.existsSync(config.STARTUP_IMAGE)) {
-                    await sock.sendMessage(ownerJid, { image: fs.readFileSync(config.STARTUP_IMAGE), caption: `🚀 ${config.BOT_NAME} online!\n💧 Prefix: ${config.PREFIX}` });
+                    await sock.sendMessage(ownerJid, { image: fs.readFileSync(config.STARTUP_IMAGE), caption: `🚀 ${config.BOT_NAME} online!` });
                 } else {
                     await sock.sendMessage(ownerJid, { text: `🚀 ${config.BOT_NAME} online!` });
                 }

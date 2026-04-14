@@ -6,6 +6,7 @@ const config = require('./config');
 let sock = null;
 let isConnected = false;
 let connectionStartTime = null;
+let pingInterval = null;
 
 const connectWA = async (pairingNumber = null, onPairingCode = null) => {
     try {
@@ -14,7 +15,7 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
-            browser: ['Zero Trace Bot', 'Chrome', '120.0.0.0'], // Known working
+            browser: ['ZeroTraceBot', 'Chrome', '122.0.0.0'],
             syncFullHistory: false,
             markOnlineOnConnect: true,
             patchMessageBeforeSending: (msg) => {
@@ -26,26 +27,31 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
             maxCachedMessages: 50,
             maxMessageRetryCount: 1,
             connectTimeoutMs: 60000,
-            defaultQueryTimeoutMs: 60000
+            defaultQueryTimeoutMs: 60000,
+            keepAliveIntervalMs: 30000  // Send ping every 30s to keep connection alive
         });
 
         connectionStartTime = Date.now();
         sock.ev.on('creds.update', saveCreds);
 
-        // Handle pairing code only after connection is open
+        // Pairing logic (same as before)
         if (pairingNumber && typeof pairingNumber === 'string') {
             const waitForOpen = () => new Promise((resolve) => {
                 const onUpdate = (update) => {
                     if (update.connection === 'open') {
                         sock.ev.off('connection.update', onUpdate);
-                        resolve();
+                        resolve(true);
                     }
                 };
                 sock.ev.on('connection.update', onUpdate);
-                setTimeout(resolve, 15000); // fallback after 15s
+                setTimeout(() => resolve(false), 20000);
             });
             
-            await waitForOpen();
+            const opened = await waitForOpen();
+            if (!opened) {
+                if (onPairingCode) onPairingCode(null, null, 'Connection timeout');
+                return sock;
+            }
             
             try {
                 const formattedNumber = pairingNumber.replace(/[^0-9]/g, '');
@@ -64,8 +70,9 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
             console.log(`[WA] Connection update: ${connection || 'connecting'}`);
             
             if (connection === 'close') {
-                const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
                 isConnected = false;
+                if (pingInterval) clearInterval(pingInterval);
+                const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
                 if (shouldReconnect) {
                     console.log('[WA] Reconnecting in 5s...');
                     setTimeout(() => connectWA(), 5000);
@@ -73,6 +80,13 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
             } else if (connection === 'open') {
                 isConnected = true;
                 console.log('[WA] Connected successfully!');
+                // Send a ping every 30 seconds to keep the socket alive
+                pingInterval = setInterval(() => {
+                    if (sock && isConnected) {
+                        sock.sendPresenceUpdate('available').catch(e => console.log('Ping failed'));
+                    }
+                }, 30000);
+                
                 const ownerJid = config.OWNER_NUMBER + '@s.whatsapp.net';
                 if (fs.existsSync(config.STARTUP_IMAGE)) {
                     await sock.sendMessage(ownerJid, { image: fs.readFileSync(config.STARTUP_IMAGE), caption: `🚀 ${config.BOT_NAME} online!` });
@@ -89,7 +103,12 @@ const connectWA = async (pairingNumber = null, onPairingCode = null) => {
     }
 };
 
-const disconnectWA = async () => { if (sock) await sock.logout(); sock = null; isConnected = false; };
+const disconnectWA = async () => {
+    if (pingInterval) clearInterval(pingInterval);
+    if (sock) await sock.logout();
+    sock = null;
+    isConnected = false;
+};
 const restartWithPairing = async (phone, cb) => { await disconnectWA(); return await connectWA(phone, cb); };
 const getWAConnection = () => sock;
 const isWAConnected = () => isConnected;

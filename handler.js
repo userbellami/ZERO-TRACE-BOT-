@@ -33,8 +33,8 @@ const processWhatsAppMessage = async (sock, msg, waUptime) => {
         switch (cmd) {
             case 'menu': return await sock.sendMessage(jid, { text: getMenu() });
             case 'ping': return await sock.sendMessage(jid, { text: '🏓 Pong!' });
-            case 'info': return await sock.sendMessage(jid, { text: `🤖 ${config.BOT_NAME}\nPrefix: ${config.PREFIX}\nOwner: ${config.OWNER_NUMBER}` });
-            case 'owner': return await sock.sendMessage(jid, { text: `👑 ${config.OWNER_NUMBER}` });
+            case 'info': return await sock.sendMessage(jid, { text: `🤖 ${config.BOT_NAME}\nPrefix: ${config.PREFIX}\nOwner: LORD MONK` });
+            case 'owner': return await sock.sendMessage(jid, { text: `👑 *Owner*: LORD MONK\n🤖 ${config.BOT_NAME}` });
             case 'uptime': return await sock.sendMessage(jid, { text: `⏱️ ${formatUptime(waUptime)}` });
             case 'joke': return await sock.sendMessage(jid, { text: `😂 ${['Why?','What?','How?'][Math.floor(Math.random()*3)]} joke!` });
             case 'tagall':

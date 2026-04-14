@@ -8,11 +8,10 @@ const startTime = Date.now();
 const initTelegram = async (restartCallback) => {
     if (!config.TG_TOKEN) return console.error('Missing TG_TOKEN');
     bot = new TelegramBot(config.TG_TOKEN, { polling: true });
-    const auth = (msg) => !config.TG_ADMIN_ID || msg.from.id.toString() === config.TG_ADMIN_ID.toString();
     
+    // No admin restriction – anyone can use the bot
     bot.onText(/\/start/, async (msg) => {
-        if (!auth(msg)) return;
-        // Send startup image first (like SQUICHY)
+        // Send startup image first
         if (fs.existsSync(config.STARTUP_IMAGE)) {
             await bot.sendPhoto(msg.chat.id, config.STARTUP_IMAGE, {
                 caption: `🤖 *${config.BOT_NAME}*\n\n💧 Prefix: ${config.PREFIX}\n👑 Owner: LORD MONK\n\nCommands:\n/pair <num> - Connect WhatsApp\n/uptime - Bot uptime\n/owner - Show owner`
@@ -23,7 +22,6 @@ const initTelegram = async (restartCallback) => {
     });
     
     bot.onText(/\/pair\s+(.+)/, async (msg, match) => {
-        if (!auth(msg)) return;
         const phone = match[1].replace(/[^0-9]/g, '');
         if (!phone || phone.length < 10) return bot.sendMessage(msg.chat.id, 'Invalid number. Example: /pair 254712345678');
         bot.sendMessage(msg.chat.id, `📱 Generating code for ${phone}...`);
@@ -36,17 +34,16 @@ const initTelegram = async (restartCallback) => {
     });
     
     bot.onText(/\/uptime/, (msg) => {
-        if (!auth(msg)) return;
         const total = formatUptime(Math.floor((Date.now() - startTime) / 1000));
         const waUp = wa.isWAConnected() ? `\nWA Uptime: ${formatUptime(wa.getWAUptime())}` : '\nWA: Disconnected';
         bot.sendMessage(msg.chat.id, `⏱️ Bot: ${total}${waUp}`);
     });
     
     bot.onText(/\/owner/, (msg) => {
-        if (!auth(msg)) return;
         bot.sendMessage(msg.chat.id, `👑 *Owner*: LORD MONK\n🤖 *Bot*: ${config.BOT_NAME}`);
     });
     
+    // Send startup image to the original admin (optional – still sends on boot)
     if (config.TG_ADMIN_ID && fs.existsSync(config.STARTUP_IMAGE))
         setTimeout(() => bot.sendPhoto(config.TG_ADMIN_ID, config.STARTUP_IMAGE, { caption: `🚀 ${config.BOT_NAME} started` }).catch(e=>{}), 2000);
     return bot;
